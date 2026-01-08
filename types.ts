@@ -14,6 +14,7 @@ export interface SimData {
 }
 
 export type CompanyType = 'real' | 'virtual';
+export type LicenseCategory = 'Light' | 'Turboprop' | 'SingleAisle' | 'Widebody';
 
 export interface FlightEvents {
   engineStart?: number;
@@ -34,6 +35,14 @@ export interface CompanyConfig {
   dutyStartTime?: number;
 }
 
+export interface PilotStats {
+  totalHours: number;
+  totalFlights: number;
+  rank: string;
+  licenses: LicenseCategory[];
+  avgLandingRate: number;
+}
+
 export interface Aircraft {
   id: string;
   model: string;
@@ -49,6 +58,7 @@ export interface Aircraft {
   status: 'active' | 'maintenance' | 'flying' | 'checkride';
   maxPax: number;
   emptyWeight: number; // Lbs
+  category: LicenseCategory;
 }
 
 export interface RosterFlight {
@@ -86,7 +96,6 @@ export interface FlightLog {
   landingRate: number;
   timestamp: number;
   aircraftId: string;
-  type: 'regular' | 'checkride';
   duration: number; // Milliseconds
 }
 
