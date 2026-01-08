@@ -1,6 +1,6 @@
 
 /**
- * main.js - SkyLink OCC Integrated Operations
+ * main.js - SkyLink OCC Integrated Operations with Event Triggers
  */
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
@@ -9,12 +9,13 @@ const { SimConnect, SimConnectPeriod, SimConnectDataType } = require('node-simco
 
 let mainWindow;
 let simConnect = null;
+let lastOnGround = true;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
-        width: 1400,
+        width: 1440,
         height: 900,
-        backgroundColor: '#0f172a',
+        backgroundColor: '#020617',
         webPreferences: {
             preload: path.join(__dirname, 'electron-preload.js'),
             contextIsolation: true,
@@ -36,6 +37,9 @@ async function setupSimConnect() {
         
         simConnect.on('connected', () => {
             console.log('SkyLink OCC: Link established');
+            if (mainWindow) {
+                mainWindow.webContents.send('flight-event', 'info', { message: 'MSFS Conectado com Sucesso!' });
+            }
             
             simConnect.subscribeToDataDefinition([
                 ['PLANE ALTITUDE', 'Feet', SimConnectDataType.FLOAT64],
@@ -52,12 +56,25 @@ async function setupSimConnect() {
         });
 
         simConnect.on('data', (data) => {
+            const onGround = !!data['SIM ON GROUND'];
+            
+            // Detect Takeoff
+            if (lastOnGround && !onGround) {
+                mainWindow.webContents.send('flight-event', 'info', { message: 'Decolagem Detectada! Boa Viagem.' });
+            }
+            // Detect Landing
+            if (!lastOnGround && onGround) {
+                mainWindow.webContents.send('flight-event', 'success', { message: 'Toque na pista detectado! Bem-vindo.' });
+            }
+            
+            lastOnGround = onGround;
+
             const payload = {
                 altitude: Math.round(data['PLANE ALTITUDE']),
                 groundSpeed: Math.round(data['GROUND VELOCITY']),
                 verticalSpeed: Math.round(data['VERTICAL SPEED']),
                 totalFuel: data['TOTAL FUEL QUANTITY'],
-                onGround: !!data['SIM ON GROUND'],
+                onGround: onGround,
                 enginesRunning: !!data['ENG COMBUSTION:1'],
                 parkingBrake: !!data['BRAKE PARKING INDICATOR'],
                 gearDown: !!data['GEAR HANDLE POSITION'],
@@ -69,7 +86,11 @@ async function setupSimConnect() {
             mainWindow.webContents.send('sim-data', payload);
         });
 
-        simConnect.connect({ appName: 'SkyLink OCC v3' });
+        simConnect.on('disconnected', () => {
+            mainWindow.webContents.send('flight-event', 'error', { message: 'SimConnect Desconectado.' });
+        });
+
+        simConnect.connect({ appName: 'SkyLink OCC v4' });
     } catch (e) {
         console.error('SimConnect Failure:', e.message);
     }

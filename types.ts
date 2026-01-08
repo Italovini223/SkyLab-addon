@@ -109,3 +109,14 @@ export interface SimBriefOFP {
   plannedEte: number;
   plannedDeparture: number;
 }
+
+// Global augmentation to declare electronAPI on the window object
+declare global {
+  interface Window {
+    electronAPI: {
+      onSimData: (callback: (data: SimData) => void) => void;
+      onFlightEvent: (callback: (type: 'success' | 'error' | 'warning' | 'info', data: { message: string }) => void) => void;
+      connectSim: () => void;
+    };
+  }
+}
