@@ -374,8 +374,17 @@ const DashboardView: React.FC = () => {
 };
 
 const PilotAreaView: React.FC = () => {
-  const { pilotSubTab, roster, generateRoster, fleet, pilotStats } = useAppStore();
+  const { pilotSubTab, roster, generateRoster, fleet, pilotStats, company, updateCompany, notify } = useAppStore();
+  const [sbUser, setSbUser] = useState(company.simBriefUsername || '');
   
+  const handleConnectSimBrief = () => {
+    if (window.electronAPI && (window.electronAPI as any).connectSimBrief) {
+      (window.electronAPI as any).connectSimBrief(sbUser);
+    }
+    updateCompany({ simBriefUsername: sbUser });
+    notify('success', 'Usuário SimBrief vinculado com sucesso!');
+  };
+
   if (pilotSubTab === 'roster') {
     return (
       <div className="space-y-6 animate-in slide-in-from-right-4">
@@ -417,14 +426,43 @@ const PilotAreaView: React.FC = () => {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-right-4">
-       <div className="lg:col-span-1 glass-card p-10 rounded-3xl flex flex-col items-center text-center">
-          <div className="w-28 h-28 bg-slate-900 rounded-full mb-8 flex items-center justify-center border-4 border-blue-600/30 relative">
-             <User size={56} className="text-blue-500" />
-             <div className="absolute -bottom-2 bg-blue-600 px-4 py-1 rounded-full text-[10px] font-black uppercase">Pilot</div>
+       <div className="lg:col-span-1 space-y-6">
+          <div className="glass-card p-10 rounded-3xl flex flex-col items-center text-center">
+             <div className="w-28 h-28 bg-slate-900 rounded-full mb-8 flex items-center justify-center border-4 border-blue-600/30 relative">
+                <User size={56} className="text-blue-500" />
+                <div className="absolute -bottom-2 bg-blue-600 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-400/20">{pilotStats.rank}</div>
+             </div>
+             <h3 className="text-2xl font-bold uppercase italic tracking-tighter">Pilot Command</h3>
+             <p className="text-blue-500 font-bold text-xs uppercase mt-3 tracking-widest">{Math.floor(pilotStats.totalHours)} Horas Totais</p>
           </div>
-          <h3 className="text-2xl font-bold uppercase">{pilotStats.rank}</h3>
-          <p className="text-blue-500 font-bold text-xs uppercase mt-3">Experiência: {Math.floor(pilotStats.totalHours)} Horas</p>
+
+          <div className="glass-card p-8 rounded-3xl border-slate-800/50">
+             <h4 className="text-lg font-bold flex items-center space-x-2 mb-6">
+                <Settings size={18} className="text-blue-500"/>
+                <span>Configurações de Despacho</span>
+             </h4>
+             <div className="space-y-4">
+                <div>
+                   <label className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-2 block">SimBrief Username</label>
+                   <input 
+                      type="text" 
+                      value={sbUser} 
+                      onChange={(e) => setSbUser(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-blue-500 transition-all text-sm font-mono"
+                      placeholder="Username do SimBrief..."
+                   />
+                </div>
+                <button 
+                   onClick={handleConnectSimBrief}
+                   className="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                >
+                   Vincular Conta
+                </button>
+                <p className="text-[9px] text-slate-600 uppercase tracking-widest text-center mt-2">ID para despacho operacional automático.</p>
+             </div>
+          </div>
        </div>
+
        <div className="lg:col-span-2 glass-card p-8 rounded-3xl min-h-[400px]">
           <h4 className="text-xl font-bold flex items-center space-x-3 mb-10"><History size={22} className="text-blue-500" /> <span>Logbook de Operações</span></h4>
           <div className="flex flex-col items-center justify-center py-20 opacity-30 grayscale">

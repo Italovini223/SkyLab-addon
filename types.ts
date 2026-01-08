@@ -2,6 +2,7 @@
 export interface SimData {
   altitude: number;
   groundSpeed: number;
+  indicatedAirspeed?: number;
   totalFuel: number;
   onGround: boolean;
   verticalSpeed: number;
@@ -11,17 +12,11 @@ export interface SimData {
   latitude: number;
   longitude: number;
   connected: boolean;
+  grossWeight?: number;
 }
 
 export type CompanyType = 'real' | 'virtual';
 export type LicenseCategory = 'Light' | 'Turboprop' | 'SingleAisle' | 'Widebody';
-
-export interface FlightEvents {
-  engineStart?: number;
-  takeoff?: number;
-  landing?: number;
-  engineShutdown?: number;
-}
 
 export interface CompanyConfig {
   name: string;
@@ -33,6 +28,17 @@ export interface CompanyConfig {
   reputation: number;
   setupComplete: boolean;
   dutyStartTime?: number;
+  simBriefUsername?: string;
+}
+
+export interface LoggedFlight {
+  id: string;
+  date: string;
+  route: string;
+  aircraft: string;
+  duration: string;
+  landingRate: number;
+  status: 'Perfect' | 'Good' | 'Hard';
 }
 
 export interface PilotStats {
@@ -41,6 +47,7 @@ export interface PilotStats {
   rank: string;
   licenses: LicenseCategory[];
   avgLandingRate: number;
+  logbook: LoggedFlight[];
 }
 
 export interface Aircraft {
@@ -57,7 +64,7 @@ export interface Aircraft {
   nextMaintenanceDue: number;
   status: 'active' | 'maintenance' | 'flying' | 'checkride';
   maxPax: number;
-  emptyWeight: number; // Lbs
+  emptyWeight: number;
   category: LicenseCategory;
 }
 
@@ -70,9 +77,9 @@ export interface RosterFlight {
   departureTime: string;
   status: 'pending' | 'current' | 'completed';
   pax: number;
-  cargoWeight: number; // Lbs
-  minFuel: number; // Lbs
-  events: FlightEvents;
+  cargoWeight: number;
+  minFuel: number;
+  events: any;
 }
 
 export interface Transaction {
@@ -81,22 +88,15 @@ export interface Transaction {
   description: string;
   amount: number;
   type: 'credit' | 'debit';
-  category: 'flight_revenue' | 'fuel' | 'airport_fees' | 'maintenance' | 'purchase' | 'penalty';
+  category: 'flight_revenue' | 'fuel' | 'airport_fees' | 'maintenance' | 'purchase' | 'investment';
 }
 
-export interface FlightLog {
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface Toast {
   id: string;
-  origin: string;
-  destination: string;
-  fuelUsed: number;
-  pax: number;
-  revenue: number;
-  expenses: number;
-  profit: number;
-  landingRate: number;
-  timestamp: number;
-  aircraftId: string;
-  duration: number; // Milliseconds
+  type: ToastType;
+  message: string;
 }
 
 export interface SimBriefOFP {
@@ -110,20 +110,17 @@ export interface SimBriefOFP {
   plannedDeparture: number;
 }
 
-export type ToastType = 'success' | 'error' | 'warning' | 'info';
-
-export interface Toast {
-  id: string;
-  type: ToastType;
-  message: string;
-}
-
 declare global {
   interface Window {
     electronAPI: {
       onSimData: (callback: (data: SimData) => void) => void;
       onFlightEvent: (callback: (type: ToastType, data: { message: string }) => void) => void;
-      connectSim: () => void;
+      getInitialState: () => Promise<any>;
+      setupCompany: (company: CompanyConfig) => Promise<boolean>;
+      recordTransaction: (tx: Transaction) => Promise<boolean>;
+      buyAircraft: (aircraft: Aircraft, transaction: Transaction) => Promise<boolean>;
+      updateRoster: (roster: RosterFlight[]) => Promise<boolean>;
+      finalizeFlight: (roster: RosterFlight[], txs: Transaction[], pilot: PilotStats) => Promise<boolean>;
     };
   }
 }

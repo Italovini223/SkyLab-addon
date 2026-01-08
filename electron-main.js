@@ -31,6 +31,14 @@ function createWindow() {
     });
 }
 
+// Background Function for SimBrief integration logic
+async function connectSimBrief(username) {
+    console.log(`SkyLink OCC: Synchronizing SimBrief account for user ${username}`);
+    // SimBrief API endpoint: https://www.simbrief.com/api/xml.fetcher.php?username=${username}&json=1
+    // Logic here would handle background caching or token management if necessary.
+    return true;
+}
+
 async function setupSimConnect() {
     try {
         simConnect = new SimConnect();
@@ -95,6 +103,10 @@ async function setupSimConnect() {
         console.error('SimConnect Failure:', e.message);
     }
 }
+
+ipcMain.on('connect-simbrief', (event, username) => {
+    connectSimBrief(username);
+});
 
 app.whenReady().then(() => {
     createWindow();

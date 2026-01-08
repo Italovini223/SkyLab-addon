@@ -15,4 +15,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Ações do frontend para o backend (Opcional)
     connectSim: () => ipcRenderer.send('connect-sim'),
+    
+    // SimBrief Integration
+    connectSimBrief: (username) => ipcRenderer.send('connect-simbrief', username),
 });
