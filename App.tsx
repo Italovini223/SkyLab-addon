@@ -247,8 +247,13 @@ const OnboardingModal: React.FC = () => {
   const [tempConfig, setTempConfig] = useState<Partial<CompanyConfig>>({ type: 'real', country: 'Brasil' });
 
   const finish = () => {
-    updateCompany({ ...tempConfig, setupComplete: true, balance: 150000, reputation: 5.0 }); 
-    recordTransaction("Injeção Capital Inicial", 150000, 'credit', 'purchase');
+    // REGRA DE SALDO INICIAL: Preço da aeronave mais barata cadastrada (Turboprop/Cessna 208 = 1.200.000) somado a 300.000 de capital de giro.
+    const CHEAPEST_AIRCRAFT_PRICE = 1200000;
+    const INITIAL_WORKING_CAPITAL = 300000;
+    const initialBalance = CHEAPEST_AIRCRAFT_PRICE + INITIAL_WORKING_CAPITAL;
+
+    updateCompany({ ...tempConfig, setupComplete: true, balance: initialBalance, reputation: 5.0 }); 
+    recordTransaction("Injeção Capital Inicial", initialBalance, 'credit', 'purchase');
     notify('success', "Bem-vindo ao comando, Comandante.");
   };
 
