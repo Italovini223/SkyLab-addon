@@ -110,12 +110,19 @@ export interface SimBriefOFP {
   plannedDeparture: number;
 }
 
-// Global augmentation to declare electronAPI on the window object
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface Toast {
+  id: string;
+  type: ToastType;
+  message: string;
+}
+
 declare global {
   interface Window {
     electronAPI: {
       onSimData: (callback: (data: SimData) => void) => void;
-      onFlightEvent: (callback: (type: 'success' | 'error' | 'warning' | 'info', data: { message: string }) => void) => void;
+      onFlightEvent: (callback: (type: ToastType, data: { message: string }) => void) => void;
       connectSim: () => void;
     };
   }
