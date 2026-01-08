@@ -8,10 +8,19 @@ export interface SimData {
   enginesRunning: boolean;
   parkingBrake: boolean;
   gearDown: boolean;
+  latitude: number;
+  longitude: number;
   connected: boolean;
 }
 
 export type CompanyType = 'real' | 'virtual';
+
+export interface FlightEvents {
+  engineStart?: number;
+  takeoff?: number;
+  landing?: number;
+  engineShutdown?: number;
+}
 
 export interface CompanyConfig {
   name: string;
@@ -22,17 +31,13 @@ export interface CompanyConfig {
   balance: number;
   reputation: number;
   setupComplete: boolean;
-}
-
-export interface License {
-  type: string; // 'SingleEngine', 'MultiEngine', 'Jet'
-  aircraftModels: string[];
-  status: 'locked' | 'unlocked';
+  dutyStartTime?: number;
 }
 
 export interface Aircraft {
   id: string;
   model: string;
+  icaoType: string;
   livery: string;
   registration: string;
   location: string;
@@ -42,17 +47,31 @@ export interface Aircraft {
   type: 'owned' | 'leased';
   nextMaintenanceDue: number;
   status: 'active' | 'maintenance' | 'flying' | 'checkride';
+  maxPax: number;
+  emptyWeight: number; // Lbs
 }
 
-export interface SimBriefOFP {
+export interface RosterFlight {
+  id: string;
+  flightNumber: string;
   origin: string;
   destination: string;
-  paxCount: number;
-  blockFuel: number;
-  callsign: string;
-  aircraft: string;
-  plannedEte: number;
-  plannedDeparture: number; // timestamp
+  distance: number;
+  departureTime: string;
+  status: 'pending' | 'current' | 'completed';
+  pax: number;
+  cargoWeight: number; // Lbs
+  minFuel: number; // Lbs
+  events: FlightEvents;
+}
+
+export interface Transaction {
+  id: string;
+  timestamp: number;
+  description: string;
+  amount: number;
+  type: 'credit' | 'debit';
+  category: 'flight_revenue' | 'fuel' | 'airport_fees' | 'maintenance' | 'purchase' | 'penalty';
 }
 
 export interface FlightLog {
@@ -68,4 +87,16 @@ export interface FlightLog {
   timestamp: number;
   aircraftId: string;
   type: 'regular' | 'checkride';
+  duration: number; // Milliseconds
+}
+
+export interface SimBriefOFP {
+  origin: string;
+  destination: string;
+  paxCount: number;
+  blockFuel: number;
+  callsign: string;
+  aircraft: string;
+  plannedEte: number;
+  plannedDeparture: number;
 }
