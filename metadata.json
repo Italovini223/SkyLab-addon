@@ -1,0 +1,8 @@
+{
+  "name": "SkyLink Virtual Airline Manager",
+  "description": "A comprehensive MSFS 2020/2024 companion app for managing virtual airline operations, flight tracking, and financial performance.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
