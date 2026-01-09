@@ -48,6 +48,34 @@ const REAL_WORLD_ROUTES: Record<string, string[]> = {
   "KJFK": ["KLAX", "KORD", "KATL", "KSFO", "KMIA", "KBOS", "KIAD"]
 };
 
+// Coordenadas dos Aeroportos para Cálculo de Progresso
+const AIRPORT_COORDS: Record<string, {lat: number, lon: number}> = {
+  "SBGR": { lat: -23.435, lon: -46.473 },
+  "SBKP": { lat: -23.007, lon: -47.134 },
+  "SBSP": { lat: -23.626, lon: -46.656 },
+  "SBRJ": { lat: -22.910, lon: -43.163 },
+  "SBGL": { lat: -22.810, lon: -43.250 },
+  "SBCF": { lat: -19.624, lon: -43.971 },
+  "SBPA": { lat: -29.994, lon: -51.171 },
+  "SBCT": { lat: -25.531, lon: -49.175 },
+  "SBBR": { lat: -15.869, lon: -47.917 },
+  "SBCG": { lat: -20.469, lon: -54.670 },
+  "KATL": { lat: 33.640, lon: -84.426 },
+  "KJFK": { lat: 40.641, lon: -73.778 },
+  "KLAX": { lat: 33.941, lon: -118.408 }
+};
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 3440.065; // Milhas Náuticas
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+};
+
 const REAL_AIRLINES: any = {
   "Brasil": [
     { name: "Azul Linhas Aéreas", hub: "SBKP", logo: "https://upload.wikimedia.org/wikipedia/commons/e/ed/Azul_Linhas_A%C3%A9reas_Brasileiras_logo.png" },
@@ -339,6 +367,18 @@ const ActiveFlightMonitor: React.FC = () => {
   const currentFlight = useMemo(() => roster.find(f => f.status === 'current'), [roster]);
   const aircraft = fleet[0];
 
+  const flightProgress = useMemo(() => {
+    if (!currentFlight || simData.onGround) return 0;
+    
+    const origin = AIRPORT_COORDS[currentFlight.origin];
+    if (!origin || simData.latitude === 0) return 45; // Fallback visual se coords não mapeadas
+
+    const distFromOrigin = calculateDistance(origin.lat, origin.lon, simData.latitude, simData.longitude);
+    const progress = (distFromOrigin / currentFlight.distance) * 100;
+    
+    return Math.min(Math.max(progress, 0), 100);
+  }, [simData.latitude, simData.longitude, currentFlight]);
+
   return (
     <div className="space-y-8 animate-in fade-in zoom-in-95 duration-500">
       <div className="flex justify-between items-center">
@@ -359,7 +399,7 @@ const ActiveFlightMonitor: React.FC = () => {
           { label: 'Altitude (FT)', value: simData.altitude.toLocaleString(), icon: Gauge },
           { label: 'Ground Speed (KTS)', value: simData.groundSpeed, icon: Navigation },
           { label: 'Vertical Speed (FPM)', value: simData.verticalSpeed, icon: Activity, color: simData.verticalSpeed >= 0 ? 'text-emerald-500' : 'text-red-500' },
-          { label: 'Fuel Flow / Qty', value: Math.round(simData.totalFuel).toLocaleString(), icon: Fuel }
+          { label: 'Fuel Qty (LB)', value: Math.round(simData.totalFuel).toLocaleString(), icon: Fuel }
         ].map((stat, i) => (
           <div key={i} className="glass-card p-8 rounded-3xl border-slate-800/50">
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3">{stat.label}</p>
@@ -388,8 +428,8 @@ const ActiveFlightMonitor: React.FC = () => {
             </div>
             <div className="flex-1 px-16 relative">
               <div className="w-full h-1 bg-slate-800 relative">
-                <div className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-1000" style={{ width: '45%' }}></div>
-                <Plane size={24} className="text-blue-500 absolute top-1/2 left-[45%] -translate-y-1/2 rotate-90" />
+                <div className="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-1000 ease-linear" style={{ width: `${flightProgress}%` }}></div>
+                <Plane size={24} className="text-blue-500 absolute top-1/2 -translate-y-1/2 rotate-90 transition-all duration-1000 ease-linear" style={{ left: `${flightProgress}%` }} />
               </div>
               <p className="mt-4 text-[10px] font-bold text-slate-600 uppercase italic text-center">Em Rota - Estimado FL340</p>
             </div>
@@ -402,10 +442,13 @@ const ActiveFlightMonitor: React.FC = () => {
           <div className="space-y-3">
             <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500">
               <span>Progresso de Voo</span>
-              <span>45% Concluído</span>
+              <span className="text-blue-400">{Math.round(flightProgress)}% Concluído</span>
             </div>
             <div className="w-full h-4 bg-slate-950 rounded-full border border-white/5 overflow-hidden">
-              <div className="h-full bg-blue-600 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all duration-1000" style={{ width: '45%' }}></div>
+              <div 
+                className="h-full bg-blue-600 rounded-full shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all duration-1000 ease-linear" 
+                style={{ width: `${flightProgress}%` }}
+              ></div>
             </div>
           </div>
         </div>

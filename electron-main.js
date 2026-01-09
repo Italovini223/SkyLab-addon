@@ -75,14 +75,14 @@ async function setupSimConnect() {
                 ['PLANE ALTITUDE', 'Feet', SimConnectDataType.FLOAT64],
                 ['GROUND VELOCITY', 'Knots', SimConnectDataType.FLOAT64],
                 ['VERTICAL SPEED', 'Feet per minute', SimConnectDataType.FLOAT64],
-                ['TOTAL FUEL QUANTITY', 'Pounds', SimConnectDataType.FLOAT64],
+                ['FUEL TOTAL QUANTITY WEIGHT', 'Pounds', SimConnectDataType.FLOAT64],
+                ['PLANE LATITUDE', 'Degrees', SimConnectDataType.FLOAT64],
+                ['PLANE LONGITUDE', 'Degrees', SimConnectDataType.FLOAT64],
                 ['SIM ON GROUND', 'Bool', SimConnectDataType.INT32],
                 ['ENG COMBUSTION:1', 'Bool', SimConnectDataType.INT32],
                 ['BRAKE PARKING INDICATOR', 'Bool', SimConnectDataType.INT32],
-                ['GEAR HANDLE POSITION', 'Bool', SimConnectDataType.INT32],
-                ['PLANE LATITUDE', 'Degrees', SimConnectDataType.FLOAT64],
-                ['PLANE LONGITUDE', 'Degrees', SimConnectDataType.FLOAT64]
-            ], SimConnectPeriod.VISUAL_FRAME);
+                ['GEAR HANDLE POSITION', 'Bool', SimConnectDataType.INT32]
+            ], SimConnectPeriod.SECOND);
         });
 
         simConnect.on('data', (data) => {
@@ -99,13 +99,13 @@ async function setupSimConnect() {
                 altitude: Math.round(data['PLANE ALTITUDE']),
                 groundSpeed: Math.round(data['GROUND VELOCITY']),
                 verticalSpeed: Math.round(data['VERTICAL SPEED']),
-                totalFuel: data['TOTAL FUEL QUANTITY'],
+                totalFuel: data['FUEL TOTAL QUANTITY WEIGHT'],
+                latitude: data['PLANE LATITUDE'],
+                longitude: data['PLANE LONGITUDE'],
                 onGround: onGround,
                 enginesRunning: !!data['ENG COMBUSTION:1'],
                 parkingBrake: !!data['BRAKE PARKING INDICATOR'],
                 gearDown: !!data['GEAR HANDLE POSITION'],
-                latitude: data['PLANE LATITUDE'],
-                longitude: data['PLANE LONGITUDE'],
                 connected: true
             };
             mainWindow.webContents.send('sim-data', payload);
