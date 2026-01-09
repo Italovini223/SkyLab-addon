@@ -1,15 +1,45 @@
 
 /**
- * main.js - SkyLink OCC Integrated Operations with Event Triggers
+ * main.js - SkyLink OCC Integrated Operations with SQLite Persistence
  */
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const { SimConnect, SimConnectPeriod, SimConnectDataType } = require('node-simconnect');
+const sqlite3 = require('sqlite3').verbose();
 
 let mainWindow;
 let simConnect = null;
 let lastOnGround = true;
+let db;
+
+// Inicialização do Banco de Dados SQLite
+function initDatabase() {
+    const dbPath = path.join(app.getPath('userData'), 'skylink_va.sqlite');
+    db = new sqlite3.Database(dbPath, (err) => {
+        if (err) console.error('Database Error:', err.message);
+        else console.log('SkyLink OCC: Database linked at', dbPath);
+    });
+
+    db.serialize(() => {
+        // Tabela de Rotas Sugeridas (Cache para busca rápida)
+        db.run(`CREATE TABLE IF NOT EXISTS suggested_routes (
+            id TEXT PRIMARY KEY,
+            origin TEXT,
+            destination TEXT,
+            distance INTEGER,
+            airline_type TEXT
+        )`);
+
+        // Tabela de Frota para persistência de localização
+        db.run(`CREATE TABLE IF NOT EXISTS fleet_status (
+            aircraft_id TEXT PRIMARY KEY,
+            location TEXT,
+            total_hours REAL,
+            last_update INTEGER
+        )`);
+    });
+}
 
 function createWindow() {
     mainWindow = new BrowserWindow({
@@ -29,14 +59,6 @@ function createWindow() {
         shell.openExternal(url);
         return { action: 'deny' };
     });
-}
-
-// Background Function for SimBrief integration logic
-async function connectSimBrief(username) {
-    console.log(`SkyLink OCC: Synchronizing SimBrief account for user ${username}`);
-    // SimBrief API endpoint: https://www.simbrief.com/api/xml.fetcher.php?username=${username}&json=1
-    // Logic here would handle background caching or token management if necessary.
-    return true;
 }
 
 async function setupSimConnect() {
@@ -65,16 +87,12 @@ async function setupSimConnect() {
 
         simConnect.on('data', (data) => {
             const onGround = !!data['SIM ON GROUND'];
-            
-            // Detect Takeoff
             if (lastOnGround && !onGround) {
                 mainWindow.webContents.send('flight-event', 'info', { message: 'Decolagem Detectada! Boa Viagem.' });
             }
-            // Detect Landing
             if (!lastOnGround && onGround) {
                 mainWindow.webContents.send('flight-event', 'success', { message: 'Toque na pista detectado! Bem-vindo.' });
             }
-            
             lastOnGround = onGround;
 
             const payload = {
@@ -90,7 +108,6 @@ async function setupSimConnect() {
                 longitude: data['PLANE LONGITUDE'],
                 connected: true
             };
-
             mainWindow.webContents.send('sim-data', payload);
         });
 
@@ -104,11 +121,8 @@ async function setupSimConnect() {
     }
 }
 
-ipcMain.on('connect-simbrief', (event, username) => {
-    connectSimBrief(username);
-});
-
 app.whenReady().then(() => {
+    initDatabase();
     createWindow();
     setupSimConnect();
 });

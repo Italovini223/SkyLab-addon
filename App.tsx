@@ -18,6 +18,18 @@ const AIRPORT_FEE_PER_NM = 4.5;
 const DUTY_LIMIT_MS = 12 * 60 * 60 * 1000;
 const FATIGUE_PENALTY = 0.20;
 
+// Estrutura de Rotas Reais Sugeridas (Exemplo para expansão)
+const REAL_WORLD_ROUTES: Record<string, string[]> = {
+  "SBKP": ["SBRJ", "SBCF", "SBGL", "SBCG", "SBPA", "SBFL", "SBCT", "SBBR", "SBCY", "SBGO", "SBFZ", "SBRF"],
+  "SBGR": ["SBSP", "SBRJ", "SBGL", "SBCF", "SBPA", "SBCT", "SBRF", "SBSV", "SBFZ", "SBBE", "SBBR", "SBCG"],
+  "SBSP": ["SBGR", "SBRJ", "SBCF", "SBCG", "SBPA", "SBCT", "SBBR", "SBCY", "SBGO", "SBGL"],
+  "SBRJ": ["SBSP", "SBGR", "SBKP", "SBCF", "SBBR", "SBCT"],
+  "SBGL": ["SBGR", "SBKP", "SBCF", "SBRF", "SBSV", "SBPA", "SBCT"],
+  "KATL": ["KJFK", "KLAX", "KORD", "KDFW", "KMIA", "KMCO", "KCLT", "KSFO", "KSEA"],
+  "KLAX": ["KATL", "KORD", "KJFK", "KSFO", "KSEA", "KPHX", "KLAS", "KDEN"],
+  "KJFK": ["KLAX", "KORD", "KATL", "KSFO", "KMIA", "KBOS", "KIAD"]
+};
+
 const REAL_AIRLINES: any = {
   "Brasil": [
     { name: "Azul Linhas Aéreas", hub: "SBKP", logo: "https://upload.wikimedia.org/wikipedia/commons/e/ed/Azul_Linhas_A%C3%A9reas_Brasileiras_logo.png" },
@@ -32,8 +44,8 @@ const REAL_AIRLINES: any = {
 
 const MARKET_CANDIDATES: Aircraft[] = [
   { id: 'm1', model: 'A320neo', icaoType: 'A20N', livery: 'Standard', registration: 'PR-XBI', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 50, status: 'active', maxPax: 174, emptyWeight: 90000, category: 'SingleAisle' },
-  { id: 'm2', model: '737-800', icaoType: 'B738', livery: 'Standard', registration: 'PR-GUM', location: 'SBSP', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 45, status: 'active', maxPax: 186, emptyWeight: 91000, category: 'SingleAisle' },
-  { id: 'm3', model: 'C208 Grand Caravan', icaoType: 'C208', livery: 'Standard', registration: 'PS-CNT', location: 'SBMT', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 30, status: 'active', maxPax: 9, emptyWeight: 4500, category: 'Turboprop' },
+  { id: 'm2', model: '737-800', icaoType: 'B738', livery: 'Standard', registration: 'PR-GUM', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 45, status: 'active', maxPax: 186, emptyWeight: 91000, category: 'SingleAisle' },
+  { id: 'm3', model: 'C208 Grand Caravan', icaoType: 'C208', livery: 'Standard', registration: 'PS-CNT', location: 'SBKP', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 30, status: 'active', maxPax: 9, emptyWeight: 4500, category: 'Turboprop' },
   { id: 'm4', model: 'A350-900', icaoType: 'A359', livery: 'Standard', registration: 'PR-AOW', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 100, status: 'active', maxPax: 334, emptyWeight: 250000, category: 'Widebody' },
 ];
 
@@ -88,7 +100,7 @@ const NotificationComponent: React.FC = () => {
           <div className={`${
             t.type === 'success' ? 'text-emerald-500' : 
             t.type === 'error' ? 'text-red-500' : 
-            t.type === 'warning' ? 'text-yellow-500' : 'text-blue-500'
+            t.type === 'warning' ? 'text-yellow-500' : 'border-blue-500'
           }`}>
             {t.type === 'success' && <CheckCircle size={20} />}
             {t.type === 'error' && <AlertTriangle size={20} />}
@@ -558,28 +570,70 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const updatePilotStats = (stats: Partial<PilotStats>) => setPilotStats(prev => ({ ...prev, ...stats }));
   const addToFleet = (aircraft: Aircraft) => setFleet(prev => [...prev, aircraft]);
 
+  // --- LÓGICA DE GERAÇÃO DE ESCALA ATUALIZADA (DINAMISMO E ROTAS REAIS) ---
   const generateRoster = (legs: number) => {
-    if (fleet.length === 0) return notify('warning', "Sem aeronaves disponíveis.");
-    const aircraft = fleet[0];
-    const regionAirports = AIRPORTS_BY_REGION[company.country || "Brasil"];
-    const newRoster: RosterFlight[] = [];
-    let currentLoc = aircraft.location;
+    if (fleet.length === 0) return notify('warning', "Sem aeronaves disponíveis no hangar.");
+    
+    // Seleciona a aeronave ativa atual (neste escopo assume-se a primeira)
+    const aircraft = fleet[0]; 
+    
+    // 1. DETERMINAÇÃO DA ORIGEM (Dinamismo Total - Fim do SBMT fixo)
+    let origin = aircraft.location || company.hub;
+
+    // Regra de Continuidade: se já existe escala planejada, começa onde a última perna termina
+    if (roster.length > 0) {
+      origin = roster[roster.length - 1].destination;
+    } else if (pilotStats.totalFlights === 0 && company.setupComplete) {
+      // Regra Virtual/Início: Se for o primeiro voo da empresa, usa o HUB configurado
+      origin = company.hub;
+    }
+
+    const newFlights: RosterFlight[] = [];
+    let movingLoc = origin;
 
     for (let i = 0; i < legs; i++) {
-      let dest = regionAirports[Math.floor(Math.random() * regionAirports.length)];
-      while (dest === currentLoc) dest = regionAirports[Math.floor(Math.random() * regionAirports.length)];
-      const pax = Math.floor(aircraft.maxPax * (0.5 + Math.random() * 0.5));
-      newRoster.push({
+      // 2. BUSCA DE DESTINOS (Lógica Sequential e getRandomRoute)
+      let dest = "";
+      const suggested = REAL_WORLD_ROUTES[movingLoc];
+      
+      if (suggested && suggested.length > 0) {
+        // Seleciona um destino real do banco de dados para a origem atual
+        dest = suggested[Math.floor(Math.random() * suggested.length)];
+      } else {
+        // Fallback: seleciona um aeroporto aleatório da região se não houver rota real mapeada
+        const regionAirports = AIRPORTS_BY_REGION[company.country || "Brasil"];
+        dest = regionAirports[Math.floor(Math.random() * regionAirports.length)];
+        while (dest === movingLoc) {
+          dest = regionAirports[Math.floor(Math.random() * regionAirports.length)];
+        }
+      }
+      
+      const pax = Math.floor(aircraft.maxPax * (0.6 + Math.random() * 0.4));
+      newFlights.push({
         id: Math.random().toString(36).substr(2, 9),
-        flightNumber: `SL${Math.floor(1000 + Math.random() * 8999)}`,
-        origin: currentLoc, destination: dest, distance: 200, departureTime: "10:00",
-        status: i === 0 ? 'current' : 'pending', pax, cargoWeight: 5000, minFuel: 10000, events: {}
+        flightNumber: `${company.name.substring(0,2).toUpperCase()}${Math.floor(1000 + Math.random() * 8999)}`,
+        origin: movingLoc, 
+        destination: dest, 
+        distance: 250, 
+        departureTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: (roster.length === 0 && i === 0) ? 'current' : 'pending', 
+        pax, 
+        cargoWeight: Math.floor(Math.random() * 3000) + 2000, 
+        minFuel: 10000, 
+        events: {}
       });
-      currentLoc = dest;
+
+      // Atualiza o cursor de localização para a próxima perna da escala
+      movingLoc = dest;
     }
+
+    // 3. PERSISTÊNCIA / PRÉ-RESERVA (Reserva a localização futura no banco de dados)
+    // Atualizamos a localização da aeronave para o destino final da nova escala gerada
+    setFleet(prev => prev.map(a => a.id === aircraft.id ? { ...a, location: movingLoc } : a));
+
     if (!company.dutyStartTime) updateCompany({ dutyStartTime: Date.now() });
-    setRoster(newRoster);
-    notify('success', "Escala operacional gerada.");
+    setRoster(prev => [...prev, ...newFlights]);
+    notify('success', `Escala operacional gerada partindo de ${origin}. Aeronave pré-posicionada em ${movingLoc}.`);
   };
 
   const finalizeFlight = useCallback((finalFuel: number, finalVS: number) => {
@@ -594,15 +648,23 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     recordTransaction(`Voo ${currentLeg.flightNumber}: Receita`, revenue, 'credit', 'flight_revenue');
     recordTransaction(`Combustível ${currentLeg.flightNumber}`, fuelCost, 'debit', 'fuel');
     
+    // Atualização do Logbook e Estatísticas
     updatePilotStats({ 
       totalFlights: pilotStats.totalFlights + 1,
       totalHours: pilotStats.totalHours + 1.2,
       rank: pilotStats.totalHours > 200 ? 'Comandante Master' : pilotStats.totalHours > 50 ? 'Primeiro Oficial' : 'Cadete'
     });
 
+    // A localização já foi "pré-reservada" em generateRoster, mas garantimos aqui a atualização final se necessário
+    setFleet(prev => prev.map(a => ({ ...a, location: currentLeg.destination })));
+
     const updatedRoster = roster.map(l => l.id === currentLeg.id ? { ...l, status: 'completed' as const } : l);
+    // Definir o próximo voo pendente como 'current' se houver
+    const nextPending = updatedRoster.find(l => l.status === 'pending');
+    if (nextPending) nextPending.status = 'current';
+
     setRoster(updatedRoster);
-    notify('success', `Pouso Concluído! Lucro: $${totalProfit.toLocaleString()}`);
+    notify('success', `Pouso em ${currentLeg.destination} concluído! Lucro: $${totalProfit.toLocaleString()}`);
   }, [roster, pilotStats, recordTransaction, notify]);
 
   // Lógica de monitoramento SimConnect
