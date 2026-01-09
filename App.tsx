@@ -9,12 +9,32 @@ import {
   CheckCircle, Award, List, Building2, ChevronRight, 
   TrendingUp, TrendingDown, DollarSign, Calendar, Clock, Navigation,
   User, Coffee, ShieldCheck, History, BarChart3, X, Info, ShoppingCart,
-  Gauge, Fuel, Compass
+  Gauge, Fuel, Compass, ClipboardCheck, Timer, HelpCircle
 } from 'lucide-react';
 
 // --- CONSTANTES DE NEGÓCIO ---
 const TICKET_PRICE = 165;
 const FUEL_PRICE_LB = 0.88;
+
+const LICENSE_REQS: Record<LicenseCategory, { name: string, hours: number, price: number, color: string }> = {
+  'Light': { name: 'PPA (Privado)', hours: 0, price: 0, color: 'text-emerald-500' },
+  'Turboprop': { name: 'PCH (Comercial)', hours: 10, price: 50000, color: 'text-blue-500' },
+  'SingleAisle': { name: 'JET (Single-Aisle)', hours: 50, price: 250000, color: 'text-indigo-500' },
+  'Widebody': { name: 'ATP (Widebody)', hours: 150, price: 750000, color: 'text-purple-500' }
+};
+
+const QUESTION_BANK = [
+  { q: "Qual o principal fator que gera sustentação em uma asa?", a: "Diferença de pressão entre o intradorso e extradorso", options: ["Diferença de pressão entre o intradorso e extradorso", "Apenas a força do motor", "O peso total da aeronave"] },
+  { q: "O que é a Velocidade V1 na decolagem?", a: "Velocidade de decisão: parar ou continuar", options: ["Velocidade de rotação", "Velocidade de decisão: parar ou continuar", "Velocidade de recolhimento de flaps"] },
+  { q: "No ILS, o que o 'Glideslope' fornece ao piloto?", a: "Perfil de descida vertical", options: ["Direção lateral da pista", "Perfil de descida vertical", "Informação de distância DME"] },
+  { q: "O efeito solo (Ground Effect) ocorre em qual altura aproximada?", a: "Cerca de uma envergadura da aeronave", options: ["500 pés acima do solo", "Cerca de uma envergadura da aeronave", "Sempre abaixo de 100 pés fixos"] },
+  { q: "Como o ar frio e denso afeta a performance da aeronave?", a: "Aumenta a performance de decolagem e subida", options: ["Aumenta a performance de decolagem e subida", "Diminui a sustentação", "Aumenta o consumo drasticamente"] },
+  { q: "O que é o ajuste 'QNH' no altímetro?", a: "Ajuste para altitude em relação ao nível do mar", options: ["Ajuste padrão 1013.2 hPa", "Ajuste para altitude em relação ao nível do mar", "Temperatura externa da pista"] },
+  { q: "Qual comando de voo controla o eixo de Arfagem (Pitch)?", a: "Profundor", options: ["Leme", "Aileron", "Profundor"] },
+  { q: "O que significa a sigla IFR em aviação?", a: "Regras de Voo por Instrumentos", options: ["Informação de Frequência de Rádio", "Regras de Voo por Instrumentos", "Informação de Rota Fixa"] },
+  { q: "Se a pressão atmosférica diminuir, a altitude densidade...", a: "Aumenta", options: ["Aumenta", "Diminui", "Não sofre alteração"] },
+  { q: "Um estol (stall) é causado pelo quê?", a: "Excesso de ângulo de ataque", options: ["Falta de combustível", "Excesso de ângulo de ataque", "Alta velocidade excessiva"] }
+];
 
 // Estrutura de Rotas Reais Sugeridas
 const REAL_WORLD_ROUTES: Record<string, string[]> = {
@@ -72,7 +92,7 @@ interface AppContextType {
   updatePilotStats: (stats: Partial<PilotStats>) => void;
   addToFleet: (aircraft: Aircraft) => void;
   generateRoster: (legs: number) => void;
-  finalizeFlight: (finalFuel: number, finalVS: number) => void;
+  finalizeFlight: (finalFuel: number) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -390,33 +410,6 @@ const ActiveFlightMonitor: React.FC = () => {
           </div>
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="glass-card p-8 rounded-3xl border-slate-800/50">
-           <h4 className="text-lg font-bold flex items-center space-x-2 mb-6 uppercase tracking-tighter">
-             <Compass size={18} className="text-blue-500" />
-             <span>Status de Sistemas</span>
-           </h4>
-           <div className="space-y-4">
-             <div className="flex justify-between items-center p-4 bg-slate-900/30 rounded-2xl border border-white/5">
-                <span className="text-xs text-slate-400 font-bold uppercase">Trem de Pouso</span>
-                <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-lg ${simData.gearDown ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-                  {simData.gearDown ? 'Down' : 'Retracted'}
-                </span>
-             </div>
-             <div className="flex justify-between items-center p-4 bg-slate-900/30 rounded-2xl border border-white/5">
-                <span className="text-xs text-slate-400 font-bold uppercase">Freio Estacionamento</span>
-                <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-lg ${simData.parkingBrake ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                  {simData.parkingBrake ? 'Set' : 'Released'}
-                </span>
-             </div>
-           </div>
-        </div>
-        
-        <div className="glass-card p-8 rounded-3xl border-slate-800/50 flex items-center justify-center text-center opacity-40 italic">
-          <p className="text-xs text-slate-500">O log de eventos em tempo real está sendo processado pelo SimConnect v4 Bridge.</p>
-        </div>
-      </div>
     </div>
   );
 };
@@ -472,14 +465,120 @@ const DashboardView: React.FC = () => {
   );
 };
 
+// --- COMPONENTE DE LICENÇAS E EXAME ---
+
+const LicenseCheckride: React.FC<{ category: LicenseCategory, onComplete: (passed: boolean) => void }> = ({ category, onComplete }) => {
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [answers, setAnswers] = useState<boolean[]>([]);
+  const [finished, setFinished] = useState(false);
+
+  // Seleciona 5 questões aleatórias
+  const examQuestions = useMemo(() => {
+    return [...QUESTION_BANK].sort(() => 0.5 - Math.random()).slice(0, 5);
+  }, []);
+
+  const handleAnswer = (opt: string) => {
+    const isCorrect = opt === examQuestions[currentQuestion].a;
+    setAnswers([...answers, isCorrect]);
+    if (currentQuestion < 4) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      setFinished(true);
+    }
+  };
+
+  if (finished) {
+    const correctCount = answers.filter(a => a).length;
+    const passed = correctCount >= 4;
+
+    return (
+      <div className="glass-card p-12 rounded-[40px] text-center max-w-2xl mx-auto space-y-8 animate-in zoom-in duration-300">
+        <div className={`w-24 h-24 mx-auto rounded-full flex items-center justify-center ${passed ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'}`}>
+          {passed ? <CheckCircle size={48} /> : <AlertTriangle size={48} />}
+        </div>
+        <div>
+          <h4 className="text-3xl font-black italic tracking-tighter uppercase">{passed ? 'Aprovado!' : 'Reprovado'}</h4>
+          <p className="text-slate-500 mt-2 font-bold uppercase tracking-widest">Você acertou {correctCount} de 5 questões.</p>
+        </div>
+        <p className="text-sm text-slate-400">
+          {passed 
+            ? "Parabéns, Comandante! Sua nova habilitação técnica foi devidamente averbada em sua ficha funcional." 
+            : "Infelizmente você não atingiu a pontuação mínima de 80%. O valor da inscrição não será reembolsado."}
+        </p>
+        <button 
+          onClick={() => onComplete(passed)}
+          className={`w-full py-5 rounded-2xl font-black uppercase tracking-widest text-xs transition-all ${passed ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-800 hover:bg-slate-700'}`}
+        >
+          {passed ? 'Finalizar Checkride' : 'Voltar e Estudar'}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="glass-card p-12 rounded-[40px] max-w-2xl mx-auto space-y-10 animate-in slide-in-from-bottom-8">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-600/10 rounded-lg text-blue-500"><ClipboardCheck size={20}/></div>
+          <h4 className="font-black italic text-lg uppercase tracking-tighter">Exame Técnico: {LICENSE_REQS[category].name}</h4>
+        </div>
+        <div className="flex items-center space-x-2 text-blue-400 font-mono text-sm font-bold">
+          <Timer size={14}/> <span>Questão {currentQuestion + 1}/5</span>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5">
+          <p className="text-lg font-bold text-slate-100">{examQuestions[currentQuestion].q}</p>
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+          {examQuestions[currentQuestion].options.map((opt, i) => (
+            <button 
+              key={i} 
+              onClick={() => handleAnswer(opt)}
+              className="w-full text-left p-5 bg-slate-800/50 hover:bg-blue-600/10 border border-slate-700 hover:border-blue-500/50 rounded-2xl transition-all text-sm font-medium group flex justify-between items-center"
+            >
+              <span>{opt}</span>
+              <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PilotAreaView: React.FC = () => {
-  const { pilotSubTab, roster, generateRoster, fleet, pilotStats, company, updateCompany, notify } = useAppStore();
+  const { pilotSubTab, roster, generateRoster, fleet, pilotStats, company, updateCompany, notify, recordTransaction, updatePilotStats } = useAppStore();
   const [sbUser, setSbUser] = useState(company.simBriefUsername || '');
+  const [activeCheckride, setActiveCheckride] = useState<LicenseCategory | null>(null);
   
   const handleConnectSimBrief = () => {
     updateCompany({ simBriefUsername: sbUser });
     notify('success', 'Usuário SimBrief vinculado.');
   };
+
+  const startCheckride = (cat: LicenseCategory) => {
+    const req = LICENSE_REQS[cat];
+    if (pilotStats.totalHours < req.hours) return notify('error', `Requisito: ${req.hours}h totais de voo.`);
+    if (company.balance < req.price) return notify('error', "Saldo insuficiente para taxa de exame.");
+    
+    // Transação de Taxa de Exame
+    recordTransaction(`Taxa Exame: ${req.name}`, req.price, 'debit', 'investment');
+    setActiveCheckride(cat);
+  };
+
+  const handleExamComplete = (passed: boolean) => {
+    if (passed && activeCheckride) {
+      updatePilotStats({ licenses: [...pilotStats.licenses, activeCheckride] });
+      notify('success', `Habilitação ${activeCheckride} emitida!`);
+    }
+    setActiveCheckride(null);
+  };
+
+  if (activeCheckride) {
+    return <LicenseCheckride category={activeCheckride} onComplete={handleExamComplete} />;
+  }
 
   if (pilotSubTab === 'roster') {
     return (
@@ -502,13 +601,61 @@ const PilotAreaView: React.FC = () => {
     );
   }
 
+  if (pilotSubTab === 'licenses') {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in slide-in-from-right-4">
+        {(Object.keys(LICENSE_REQS) as LicenseCategory[]).map(cat => {
+          const req = LICENSE_REQS[cat];
+          const hasLicense = pilotStats.licenses.includes(cat);
+          const canAfford = company.balance >= req.price;
+          const hasHours = pilotStats.totalHours >= req.hours;
+
+          return (
+            <div key={cat} className={`glass-card p-8 rounded-[32px] border transition-all ${hasLicense ? 'border-emerald-500/30 bg-emerald-500/5 shadow-2xl shadow-emerald-500/5' : 'border-slate-800/50 shadow-xl'}`}>
+               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 shadow-xl ${hasLicense ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
+                  <ShieldCheck size={28} />
+               </div>
+               <h4 className="text-xl font-black italic uppercase tracking-tighter leading-none mb-1">{req.name}</h4>
+               <p className={`text-[10px] font-black uppercase tracking-widest mb-8 ${req.color}`}>Categoria: {cat}</p>
+
+               <div className="space-y-4 mb-10">
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                    <span className="text-slate-500">Requisito Horas</span>
+                    <span className={hasHours ? 'text-emerald-500' : 'text-red-400'}>{pilotStats.totalHours.toFixed(1)} / {req.hours}h</span>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                    <span className="text-slate-500">Custo Exame</span>
+                    <span className={canAfford ? 'text-blue-400' : 'text-red-400'}>R$ {req.price.toLocaleString()}</span>
+                  </div>
+               </div>
+
+               {hasLicense ? (
+                 <div className="w-full py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center justify-center space-x-2">
+                    <CheckCircle size={14}/> <span>LICENCIADO</span>
+                 </div>
+               ) : (
+                 <button 
+                  onClick={() => startCheckride(cat)}
+                  disabled={!hasHours || !canAfford}
+                  className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${(!hasHours || !canAfford) ? 'bg-slate-800 text-slate-600 opacity-50 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20 active:scale-95'}`}
+                 >
+                   {!hasHours ? 'Horas Insuficientes' : !canAfford ? 'Saldo Insuficiente' : 'Iniciar Checkride'}
+                 </button>
+               )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-right-4">
        <div className="lg:col-span-1 space-y-6">
           <div className="glass-card p-10 rounded-3xl flex flex-col items-center text-center border-slate-800/50">
              <div className="w-28 h-28 bg-slate-900 rounded-full mb-8 flex items-center justify-center border-4 border-blue-600/30 relative">
                 <User size={56} className="text-blue-500" />
-                <div className="absolute -bottom-2 bg-blue-600 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-400/20">{pilotStats.rank}</div>
+                <div className="absolute -bottom-2 bg-blue-600 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-blue-400/20 shadow-lg">{pilotStats.rank}</div>
              </div>
              <h3 className="text-2xl font-bold uppercase italic tracking-tighter">Pilot Command</h3>
              <p className="text-blue-500 font-bold text-xs uppercase mt-3 tracking-widest">{Math.floor(pilotStats.totalHours)} Horas Totais</p>
@@ -695,10 +842,10 @@ const MainLayout: React.FC = () => {
         <header className="flex justify-between items-center mb-10">
            <div className="flex items-center space-x-5">
              <div className="p-3 bg-blue-600 rounded-2xl"><Building2 size={24} /></div>
-             <div><h2 className="text-2xl font-bold uppercase tracking-tight">{company.name}</h2><p className="text-slate-500 text-xs font-medium uppercase mt-1">Hub: <span className="text-blue-500">{company.hub}</span></p></div>
+             <div><h2 className="text-2xl font-bold uppercase tracking-tight leading-none">{company.name}</h2><p className="text-slate-500 text-xs font-medium uppercase mt-1">Hub: <span className="text-blue-500">{company.hub}</span></p></div>
            </div>
-           <div className="px-6 py-3 rounded-2xl glass-card border-emerald-500/20 border-l-4 text-right">
-              <p className="text-[10px] text-slate-500 font-bold uppercase">Patrimônio</p>
+           <div className="px-6 py-3 rounded-2xl glass-card border-emerald-500/20 border-l-4 text-right shadow-2xl">
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Patrimônio</p>
               <p className="text-xl font-mono text-emerald-400 font-bold tracking-tighter">${company.balance.toLocaleString()}</p>
            </div>
         </header>
@@ -752,7 +899,7 @@ const MainLayout: React.FC = () => {
                          if(company.balance < price) return notify('error', "Saldo insuficiente.");
                          addToFleet({...p, id: Math.random().toString(36).substr(2,9)});
                          notify('success', `${p.model} adquirido.`);
-                      }} className="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl font-bold text-xs uppercase shadow-xl shadow-blue-600/20 active:scale-95">Adquirir</button>
+                      }} className="w-full py-4 bg-blue-600 rounded-2xl font-bold text-xs uppercase shadow-xl shadow-blue-600/20 active:scale-95">Adquirir</button>
                    </div>
                 );
              })}
