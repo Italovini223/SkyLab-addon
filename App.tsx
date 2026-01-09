@@ -9,12 +9,21 @@ import {
   CheckCircle, Award, List, Building2, ChevronRight, 
   TrendingUp, TrendingDown, DollarSign, Calendar, Clock, Navigation,
   User, Coffee, ShieldCheck, History, BarChart3, X, Info, ShoppingCart,
-  Gauge, Fuel, Compass, ClipboardCheck, Timer, HelpCircle
+  Gauge, Fuel, Compass, ClipboardCheck, Timer, HelpCircle, ChevronDown,
+  Weight, Users
 } from 'lucide-react';
 
-// --- CONSTANTES DE NEGÓCIO ---
+// --- CONSTANTES DE NEGÓCIO E PERFORMANCE ---
 const TICKET_PRICE = 165;
-const FUEL_PRICE_LB = 0.88;
+const FUEL_PRICE_KG = 1.95; 
+
+// Base de Dados de Performance Real (KG / NM)
+const AIRCRAFT_PERFORMANCE: Record<string, { mtow: number, maxPayload: number, maxFuel: number, fuelBurnPerHour: number, cruiseSpeed: number, maxPax: number }> = {
+  'A20N': { mtow: 79000, maxPayload: 20000, maxFuel: 19000, fuelBurnPerHour: 2400, cruiseSpeed: 450, maxPax: 180 },
+  'B738': { mtow: 79000, maxPayload: 21000, maxFuel: 20000, fuelBurnPerHour: 2500, cruiseSpeed: 450, maxPax: 189 },
+  'C208': { mtow: 3969, maxPayload: 1000, maxFuel: 1000, fuelBurnPerHour: 180, cruiseSpeed: 160, maxPax: 12 },
+  'A359': { mtow: 280000, maxPayload: 50000, maxFuel: 110000, fuelBurnPerHour: 6000, cruiseSpeed: 490, maxPax: 350 }
+};
 
 const LICENSE_REQS: Record<LicenseCategory, { name: string, hours: number, price: number, color: string }> = {
   'Light': { name: 'PPA (Privado)', hours: 0, price: 0, color: 'text-emerald-500' },
@@ -36,7 +45,6 @@ const QUESTION_BANK = [
   { q: "Um estol (stall) é causado pelo quê?", a: "Excesso de ângulo de ataque", options: ["Falta de combustível", "Excesso de ângulo de ataque", "Alta velocidade excessiva"] }
 ];
 
-// Estrutura de Rotas Reais Sugeridas
 const REAL_WORLD_ROUTES: Record<string, string[]> = {
   "SBKP": ["SBRJ", "SBCF", "SBGL", "SBCG", "SBPA", "SBFL", "SBCT", "SBBR", "SBCY", "SBGO", "SBFZ", "SBRF"],
   "SBGR": ["SBSP", "SBRJ", "SBGL", "SBCF", "SBPA", "SBCT", "SBRF", "SBSV", "SBFZ", "SBBE", "SBBR", "SBCG"],
@@ -48,7 +56,6 @@ const REAL_WORLD_ROUTES: Record<string, string[]> = {
   "KJFK": ["KLAX", "KORD", "KATL", "KSFO", "KMIA", "KBOS", "KIAD"]
 };
 
-// Coordenadas dos Aeroportos para Cálculo de Progresso
 const AIRPORT_COORDS: Record<string, {lat: number, lon: number}> = {
   "SBGR": { lat: -23.435, lon: -46.473 },
   "SBKP": { lat: -23.007, lon: -47.134 },
@@ -66,7 +73,7 @@ const AIRPORT_COORDS: Record<string, {lat: number, lon: number}> = {
 };
 
 const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-  const R = 3440.065; // Milhas Náuticas
+  const R = 3440.065; 
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -89,10 +96,10 @@ const REAL_AIRLINES: any = {
 };
 
 const MARKET_CANDIDATES: Aircraft[] = [
-  { id: 'm1', model: 'A320neo', icaoType: 'A20N', livery: 'Standard', registration: 'PR-XBI', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 50, status: 'active', maxPax: 174, emptyWeight: 90000, category: 'SingleAisle' },
-  { id: 'm2', model: '737-800', icaoType: 'B738', livery: 'Standard', registration: 'PR-GUM', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 45, status: 'active', maxPax: 186, emptyWeight: 91000, category: 'SingleAisle' },
-  { id: 'm3', model: 'C208 Grand Caravan', icaoType: 'C208', livery: 'Standard', registration: 'PS-CNT', location: 'SBKP', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 30, status: 'active', maxPax: 9, emptyWeight: 4500, category: 'Turboprop' },
-  { id: 'm4', model: 'A350-900', icaoType: 'A359', livery: 'Standard', registration: 'PR-AOW', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 100, status: 'active', maxPax: 334, emptyWeight: 250000, category: 'Widebody' },
+  { id: 'm1', model: 'A320neo', icaoType: 'A20N', livery: 'Standard', registration: 'PR-XBI', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 50, status: 'active', maxPax: 174, emptyWeight: 42000, category: 'SingleAisle' },
+  { id: 'm2', model: '737-800', icaoType: 'B738', livery: 'Standard', registration: 'PR-GUM', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 45, status: 'active', maxPax: 186, emptyWeight: 41400, category: 'SingleAisle' },
+  { id: 'm3', model: 'C208 Grand Caravan', icaoType: 'C208', livery: 'Standard', registration: 'PS-CNT', location: 'SBKP', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 30, status: 'active', maxPax: 12, emptyWeight: 2100, category: 'Turboprop' },
+  { id: 'm4', model: 'A350-900', icaoType: 'A359', livery: 'Standard', registration: 'PR-AOW', location: 'SBGR', totalHours: 0, totalCycles: 0, condition: 100, type: 'owned', nextMaintenanceDue: 100, status: 'active', maxPax: 334, emptyWeight: 115000, category: 'Widebody' },
 ];
 
 const AIRPORTS_BY_REGION: Record<string, string[]> = {
@@ -100,7 +107,6 @@ const AIRPORTS_BY_REGION: Record<string, string[]> = {
   "USA": ["KATL", "KLAX", "KORD", "KDFW", "KJFK", "KSFO", "KSEA", "KMIA", "KEWR", "KCLT", "KPHX", "KMCO"]
 };
 
-// --- CONTEXTO DE ESTADO ---
 interface AppContextType {
   company: CompanyConfig;
   pilotStats: PilotStats;
@@ -119,7 +125,7 @@ interface AppContextType {
   updateCompany: (config: Partial<CompanyConfig>) => void;
   updatePilotStats: (stats: Partial<PilotStats>) => void;
   addToFleet: (aircraft: Aircraft) => void;
-  generateRoster: (legs: number) => void;
+  generateRoster: (legs: number, aircraftId: string) => void;
   finalizeFlight: (finalFuel: number) => void;
 }
 
@@ -130,8 +136,6 @@ const useAppStore = () => {
   if (!context) throw new Error("useAppStore deve ser usado dentro de AppProvider");
   return context;
 };
-
-// --- COMPONENTES DA UI ---
 
 const NotificationComponent: React.FC = () => {
   const { toasts, removeToast } = useAppStore();
@@ -166,7 +170,7 @@ const NotificationComponent: React.FC = () => {
 };
 
 const SidebarComponent: React.FC = () => {
-  const { activeTab, setActiveTab, pilotSubTab, setPilotSubTab, simData, company, notify } = useAppStore();
+  const { activeTab, setActiveTab, pilotSubTab, setPilotSubTab, simData, company } = useAppStore();
   
   const [dutyTime, setDutyTime] = useState("00:00:00");
 
@@ -247,8 +251,10 @@ const SidebarComponent: React.FC = () => {
 };
 
 const FlightCardComponent: React.FC<{ flight: RosterFlight, aircraft?: Aircraft }> = ({ flight, aircraft }) => {
-  const { notify, company, setActiveTab } = useAppStore();
+  const { setActiveTab } = useAppStore();
   
+  const canMonitor = aircraft && aircraft.location === flight.origin && aircraft.status === 'active';
+
   return (
     <div className={`p-6 rounded-3xl border transition-all ${flight.status === 'current' ? 'border-blue-500/50 bg-blue-500/5 shadow-2xl shadow-blue-500/5 ring-1 ring-blue-500/20' : 'border-slate-800 opacity-60'}`}>
       <div className="flex justify-between items-center">
@@ -273,18 +279,23 @@ const FlightCardComponent: React.FC<{ flight: RosterFlight, aircraft?: Aircraft 
           </div>
           <div className="grid grid-cols-3 gap-8 text-[10px] uppercase font-bold text-slate-500 border-l border-slate-800/50 pl-10">
             <div><p className="mb-1 opacity-50">Pax</p><p className="text-white text-xs">{flight.pax}</p></div>
-            <div><p className="mb-1 opacity-50">Cargo</p><p className="text-white text-xs">{flight.cargoWeight} LB</p></div>
-            <div><p className="mb-1 opacity-50">Block Fuel</p><p className="text-emerald-500 text-xs">{flight.minFuel} LB</p></div>
+            <div><p className="mb-1 opacity-50">Cargo</p><p className="text-white text-xs">{Math.round(flight.cargoWeight)} KG</p></div>
+            <div><p className="mb-1 opacity-50">Block Fuel</p><p className="text-emerald-500 text-xs">{Math.round(flight.minFuel)} KG</p></div>
           </div>
         </div>
         <div className="flex items-center space-x-3">
           {flight.status === 'current' ? (
             <>
               <button onClick={() => {
-                notify('info', 'Abrindo SimBrief Dispatcher...');
-                window.open(`https://www.simbrief.com/system/dispatch.php?orig=${flight.origin}&dest=${flight.destination}&type=${aircraft?.icaoType || 'A20N'}&callsign=${flight.flightNumber}&airline=${company.name.substring(0,3)}`, '_blank');
+                window.open(`https://www.simbrief.com/system/dispatch.php?orig=${flight.origin}&dest=${flight.destination}&type=${aircraft?.icaoType || 'A20N'}&callsign=${flight.flightNumber}`, '_blank');
               }} className="bg-slate-900 border border-slate-800 px-5 py-3 rounded-2xl text-[10px] font-bold hover:bg-slate-800 transition-colors uppercase tracking-wider">SimBrief</button>
-              <button onClick={()=>setActiveTab('flight-monitor')} className="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-2xl text-[10px] font-bold uppercase transition-all shadow-xl shadow-blue-600/20 active:scale-95">Monitorar</button>
+              <button 
+                disabled={!canMonitor}
+                onClick={()=>setActiveTab('flight-monitor')} 
+                className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase transition-all shadow-xl active:scale-95 ${canMonitor ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20' : 'bg-slate-800 text-slate-500 cursor-not-allowed opacity-50'}`}
+              >
+                {canMonitor ? 'Monitorar' : aircraft?.status === 'maintenance' ? 'Em Manutenção' : 'Aeronave Ausente'}
+              </button>
             </>
           ) : flight.status === 'completed' ? (
             <div className="text-emerald-500 bg-emerald-500/10 px-5 py-3 rounded-2xl border border-emerald-500/20 text-[10px] font-bold flex items-center space-x-2 tracking-widest uppercase">
@@ -360,8 +371,6 @@ const OnboardingModal: React.FC = () => {
   );
 };
 
-// --- NOVA VIEW: MONITORAMENTO DE VOO ATIVO ---
-
 const ActiveFlightMonitor: React.FC = () => {
   const { simData, roster, setActiveTab, fleet } = useAppStore();
   const currentFlight = useMemo(() => roster.find(f => f.status === 'current'), [roster]);
@@ -371,7 +380,7 @@ const ActiveFlightMonitor: React.FC = () => {
     if (!currentFlight || simData.onGround) return 0;
     
     const origin = AIRPORT_COORDS[currentFlight.origin];
-    if (!origin || simData.latitude === 0) return 45; // Fallback visual se coords não mapeadas
+    if (!origin || simData.latitude === 0) return 45; 
 
     const distFromOrigin = calculateDistance(origin.lat, origin.lon, simData.latitude, simData.longitude);
     const progress = (distFromOrigin / currentFlight.distance) * 100;
@@ -399,7 +408,7 @@ const ActiveFlightMonitor: React.FC = () => {
           { label: 'Altitude (FT)', value: simData.altitude.toLocaleString(), icon: Gauge },
           { label: 'Ground Speed (KTS)', value: simData.groundSpeed, icon: Navigation },
           { label: 'Vertical Speed (FPM)', value: simData.verticalSpeed, icon: Activity, color: simData.verticalSpeed >= 0 ? 'text-emerald-500' : 'text-red-500' },
-          { label: 'Fuel Qty (LB)', value: Math.round(simData.totalFuel).toLocaleString(), icon: Fuel }
+          { label: 'Fuel Qty (KG)', value: Math.round(simData.totalFuel * 0.453592).toLocaleString(), icon: Fuel } 
         ].map((stat, i) => (
           <div key={i} className="glass-card p-8 rounded-3xl border-slate-800/50">
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-3">{stat.label}</p>
@@ -457,8 +466,6 @@ const ActiveFlightMonitor: React.FC = () => {
   );
 };
 
-// --- VIEWS (MÓDULOS DA UI) ---
-
 const DashboardView: React.FC = () => {
   const { pilotStats, fleet, transactions } = useAppStore();
   return (
@@ -508,14 +515,11 @@ const DashboardView: React.FC = () => {
   );
 };
 
-// --- COMPONENTE DE LICENÇAS E EXAME ---
-
 const LicenseCheckride: React.FC<{ category: LicenseCategory, onComplete: (passed: boolean) => void }> = ({ category, onComplete }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<boolean[]>([]);
   const [finished, setFinished] = useState(false);
 
-  // Seleciona 5 questões aleatórias
   const examQuestions = useMemo(() => {
     return [...QUESTION_BANK].sort(() => 0.5 - Math.random()).slice(0, 5);
   }, []);
@@ -595,6 +599,7 @@ const PilotAreaView: React.FC = () => {
   const { pilotSubTab, roster, generateRoster, fleet, pilotStats, company, updateCompany, notify, recordTransaction, updatePilotStats } = useAppStore();
   const [sbUser, setSbUser] = useState(company.simBriefUsername || '');
   const [activeCheckride, setActiveCheckride] = useState<LicenseCategory | null>(null);
+  const [selectedAircraftId, setSelectedAircraftId] = useState<string>('');
   
   const handleConnectSimBrief = () => {
     updateCompany({ simBriefUsername: sbUser });
@@ -606,7 +611,6 @@ const PilotAreaView: React.FC = () => {
     if (pilotStats.totalHours < req.hours) return notify('error', `Requisito: ${req.hours}h totais de voo.`);
     if (company.balance < req.price) return notify('error', "Saldo insuficiente para taxa de exame.");
     
-    // Transação de Taxa de Exame
     recordTransaction(`Taxa Exame: ${req.name}`, req.price, 'debit', 'investment');
     setActiveCheckride(cat);
   };
@@ -619,6 +623,19 @@ const PilotAreaView: React.FC = () => {
     setActiveCheckride(null);
   };
 
+  // REFRESH REATIVO DA LISTA: Observer Automático via useMemo
+  // Filtra por: 1. Licença do Piloto | 2. Status 'active'
+  const updateAvailableAircraftList = useMemo(() => {
+    return fleet.filter(a => pilotStats.licenses.includes(a.category) && a.status === 'active');
+  }, [fleet, pilotStats.licenses]);
+
+  // Performance em Tempo Real (KG) da aeronave selecionada
+  const selectedAircraftPerf = useMemo(() => {
+    const aircraft = fleet.find(a => a.id === selectedAircraftId);
+    if (!aircraft) return null;
+    return AIRCRAFT_PERFORMANCE[aircraft.icaoType];
+  }, [selectedAircraftId, fleet]);
+
   if (activeCheckride) {
     return <LicenseCheckride category={activeCheckride} onComplete={handleExamComplete} />;
   }
@@ -630,14 +647,59 @@ const PilotAreaView: React.FC = () => {
            <div className="flex justify-between mb-10 items-center">
               <div className="flex items-center space-x-4">
                  <div className="p-3 bg-blue-600/10 rounded-2xl text-blue-500 shadow-inner"><Navigation size={24}/></div>
-                 <h3 className="text-xl font-bold uppercase tracking-tighter italic">Despacho de Voos</h3>
+                 <div>
+                    <h3 className="text-xl font-bold uppercase tracking-tighter italic leading-none">Despacho de Voos</h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Gerenciamento de Pernas Operacionais</p>
+                 </div>
               </div>
-              <button onClick={() => generateRoster(1)} className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-blue-600/20 active:scale-95">Novo Plano</button>
+              <div className="flex flex-col items-end space-y-4">
+                 <div className="flex items-center space-x-4">
+                    <div className="relative">
+                       <select 
+                         value={selectedAircraftId}
+                         onChange={(e) => setSelectedAircraftId(e.target.value)}
+                         className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-xs font-bold uppercase outline-none focus:border-blue-500 transition-all appearance-none pr-10 min-w-[240px]"
+                       >
+                         <option value="">Selecionar Aeronave...</option>
+                         {updateAvailableAircraftList.map(a => (
+                           <option key={a.id} value={a.id}>{a.model} - {a.registration} ({a.location})</option>
+                         ))}
+                       </select>
+                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                    </div>
+                    <button 
+                     onClick={() => {
+                       if(!selectedAircraftId) return notify('warning', 'Selecione uma aeronave habilitada.');
+                       generateRoster(1, selectedAircraftId);
+                     }} 
+                     className="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                    >
+                      Novo Plano
+                    </button>
+                 </div>
+                 
+                 {selectedAircraftPerf && (
+                    <div className="flex space-x-6 px-4 py-2 bg-slate-900/50 border border-white/5 rounded-2xl animate-in fade-in slide-in-from-top-2">
+                       <div className="flex items-center space-x-2">
+                          <Users size={12} className="text-blue-500" />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Pax: {selectedAircraftPerf.maxPax}</span>
+                       </div>
+                       <div className="flex items-center space-x-2">
+                          <Weight size={12} className="text-emerald-500" />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Carga: {selectedAircraftPerf.maxPayload.toLocaleString()} KG</span>
+                       </div>
+                       <div className="flex items-center space-x-2">
+                          <Fuel size={12} className="text-yellow-500" />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">Fuel: {selectedAircraftPerf.maxFuel.toLocaleString()} KG</span>
+                       </div>
+                    </div>
+                 )}
+              </div>
            </div>
            <div className="space-y-4">
               {roster.length === 0 ? (
                 <div className="py-24 text-center border-2 border-dashed border-slate-800 rounded-3xl opacity-30 italic uppercase tracking-widest text-xs">Sem voos planejados</div>
-              ) : roster.map(f => <FlightCardComponent key={f.id} flight={f} aircraft={fleet[0]} />)}
+              ) : roster.map(f => <FlightCardComponent key={f.id} flight={f} aircraft={fleet.find(a => a.id === selectedAircraftId)} />)}
            </div>
         </section>
       </div>
@@ -730,8 +792,6 @@ const PilotAreaView: React.FC = () => {
   );
 };
 
-// --- APP PROVIDER ---
-
 const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [pilotSubTab, setPilotSubTab] = useState('roster');
@@ -744,7 +804,7 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   const [pilotStats, setPilotStats] = useState<PilotStats>(() => {
     const saved = localStorage.getItem('skyLink_pilot_store');
-    return saved ? JSON.parse(saved) : { totalHours: 0, totalFlights: 0, rank: 'Cadete', licenses: ['Light'], avgLandingRate: 0 };
+    return saved ? JSON.parse(saved) : { totalHours: 0, totalFlights: 0, rank: 'Cadete', licenses: ['Light'], avgLandingRate: 0, logbook: [] };
   });
 
   const [fleet, setFleet] = useState<Aircraft[]>(() => {
@@ -800,9 +860,13 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     setCompany(prev => ({ ...prev, balance: type === 'credit' ? prev.balance + amount : prev.balance - amount }));
   }, []);
 
-  const generateRoster = (legs: number) => {
-    if (fleet.length === 0) return notify('warning', "Sem aeronaves disponíveis.");
-    const aircraft = fleet[0]; 
+  const generateRoster = (legs: number, aircraftId: string) => {
+    const aircraft = fleet.find(a => a.id === aircraftId);
+    if (!aircraft) return notify('warning', "Selecione uma aeronave da frota.");
+    
+    const perf = AIRCRAFT_PERFORMANCE[aircraft.icaoType];
+    if (!perf) return notify('error', "Performance da aeronave não mapeada.");
+
     let origin = aircraft.location || company.hub;
     if (roster.length > 0) origin = roster[roster.length - 1].destination;
 
@@ -819,19 +883,30 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         while (dest === movingLoc) dest = regionAirports[Math.floor(Math.random() * regionAirports.length)];
       }
       
+      const distance = 250; 
+      const burnEnroute = (distance / perf.cruiseSpeed) * perf.fuelBurnPerHour;
+      const reserve = (45 / 60) * perf.fuelBurnPerHour;
+      const blockFuel = Math.min(burnEnroute + reserve, perf.maxFuel);
+
+      const pax = Math.floor(Math.random() * perf.maxPax) + 1;
+      const cargo = Math.floor(Math.random() * (perf.maxPayload - (pax * 80))); 
+
       newFlights.push({
         id: Math.random().toString(36).substr(2, 9),
         flightNumber: `${company.name.substring(0,2).toUpperCase()}${Math.floor(1000 + Math.random() * 8999)}`,
-        origin: movingLoc, destination: dest, distance: 250, 
+        origin: movingLoc, destination: dest, distance: distance, 
         departureTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         status: (roster.length === 0 && i === 0) ? 'current' : 'pending', 
-        pax: 150, cargoWeight: 3000, minFuel: 10000, events: {}
+        pax: pax, 
+        cargoWeight: Math.max(0, cargo), 
+        minFuel: blockFuel, 
+        events: {}
       });
       movingLoc = dest;
     }
     setFleet(prev => prev.map(a => a.id === aircraft.id ? { ...a, location: movingLoc } : a));
     setRoster(prev => [...prev, ...newFlights]);
-    notify('success', `Escala gerada partindo de ${origin}.`);
+    notify('success', `Voo planejado para ${aircraft.model} (${aircraft.registration})`);
   };
 
   const finalizeFlight = useCallback((finalFuel: number) => {
@@ -839,7 +914,7 @@ const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     if (!currentLeg) return;
     const fuelUsed = Math.max(0, initialFuelRef.current - finalFuel);
     recordTransaction(`Voo ${currentLeg.flightNumber}: Receita`, currentLeg.pax * TICKET_PRICE, 'credit', 'flight_revenue');
-    recordTransaction(`Combustível ${currentLeg.flightNumber}`, fuelUsed * FUEL_PRICE_LB, 'debit', 'fuel');
+    recordTransaction(`Combustível ${currentLeg.flightNumber}`, fuelUsed * FUEL_PRICE_KG, 'debit', 'fuel');
     updatePilotStats({ totalFlights: pilotStats.totalFlights + 1, totalHours: pilotStats.totalHours + 1.2 });
     setFleet(prev => prev.map(a => ({ ...a, location: currentLeg.destination })));
     const updatedRoster = roster.map(l => l.id === currentLeg.id ? { ...l, status: 'completed' as const } : l);
