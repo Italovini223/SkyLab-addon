@@ -5,13 +5,33 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const { SimConnect, SimConnectPeriod, SimConnectDataType } = require('node-simconnect');
 const sqlite3 = require('sqlite3').verbose();
 
-let mainWindow;
+// Módulos do SimConnect (carregamento tardio por segurança de arquitetura)
+let SimConnect, SimConnectPeriod, SimConnectDataType;
 let simConnect = null;
 let lastOnGround = true;
 let db;
+
+// Verificação de Arquitetura Inicial
+console.log(`[SkyLink Diagnostic] System Arch: ${process.arch} | Platform: ${process.platform}`);
+
+function tryLoadSimConnect() {
+    try {
+        if (process.arch !== 'ia32') {
+            console.warn('[SkyLink] AVISO: SimConnect exige ia32. Arquitetura atual:', process.arch);
+        }
+        
+        const scModule = require('node-simconnect');
+        SimConnect = scModule.SimConnect;
+        SimConnectPeriod = scModule.SimConnectPeriod;
+        SimConnectDataType = scModule.SimConnectDataType;
+        return true;
+    } catch (err) {
+        console.error('[SkyLink Error] Falha crítica ao carregar node-simconnect:', err.message);
+        return false;
+    }
+}
 
 // Inicialização do Banco de Dados SQLite
 function initDatabase() {
@@ -22,7 +42,6 @@ function initDatabase() {
     });
 
     db.serialize(() => {
-        // Tabela de Rotas Sugeridas (Cache para busca rápida)
         db.run(`CREATE TABLE IF NOT EXISTS suggested_routes (
             id TEXT PRIMARY KEY,
             origin TEXT,
@@ -31,7 +50,6 @@ function initDatabase() {
             airline_type TEXT
         )`);
 
-        // Tabela de Frota para persistência de localização
         db.run(`CREATE TABLE IF NOT EXISTS fleet_status (
             aircraft_id TEXT PRIMARY KEY,
             location TEXT,
@@ -62,6 +80,17 @@ function createWindow() {
 }
 
 async function setupSimConnect() {
+    if (!tryLoadSimConnect()) {
+        app.whenReady().then(() => {
+            if (mainWindow) {
+                mainWindow.webContents.send('flight-event', 'error', { 
+                    message: `Incompatibilidade: SimConnect exige ia32 ou electron-rebuild manual. Arch: ${process.arch}` 
+                });
+            }
+        });
+        return;
+    }
+
     try {
         simConnect = new SimConnect();
         

@@ -11,7 +11,13 @@
     "node-simconnect": "^1.0.0",
     "electron": "^27.0.0"
   },
+  "devDependencies": {
+    "electron-rebuild": "^3.2.13"
+  },
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "install-ia32": "npm install --arch=ia32",
+    "rebuild": "electron-rebuild -a ia32",
+    "postinstall": "electron-rebuild -a ia32"
   }
 }
